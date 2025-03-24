@@ -1,0 +1,71 @@
+
+nih14:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
+shenzhen:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
+chexpert:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
+padchest:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
+vindrcxr:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
+mimic:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
+rsna:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
+vindrcxr_local:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
+chestxdet_local:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
+tbx11k_local:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
+node21_local:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
+chestxdet_global:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
+tbx11k_global:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
+node21_global:
+  images_path: ""
+  train_list: ""
+  disease_embedding_path: ""
+
