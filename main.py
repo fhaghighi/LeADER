@@ -346,7 +346,7 @@ def train_one_epoch(student,anatomy_expert_model, disease_kd_loss, anatomy_kd_lo
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser('David', parents=[get_args_parser()])
+    parser = argparse.ArgumentParser('LeADER', parents=[get_args_parser()])
     args = parser.parse_args()
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     train(args)
