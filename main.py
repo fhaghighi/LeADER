@@ -16,7 +16,7 @@ import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
 from torchvision import datasets, transforms
 from torchvision import models as torchvision_models
-from data_loader import DiseasedPatchesAndEmbeddings,VinDrCXRImagesAndEmbeddings,PadChestImagesAndEmbeddings,CheXpertImagesAndEmbeddings,ShenzhenImagesAndEmbeddings,MIMICImagesAndEmbeddings,RSNAPneumoniaImagesAndEmbeddings,General_Local_GLobal_KD
+from data_loader import DiseasedPatchesAndEmbeddings,VinDrCXRImagesAndEmbeddings,PadChestImagesAndEmbeddings,CheXpertImagesAndEmbeddings,ShenzhenImagesAndEmbeddings,MIMICImagesAndEmbeddings,RSNAPneumoniaImagesAndEmbeddings,General_Local_GLobal_KD,DataAugmentations
 from swin_transformer import SwinTransformer
 import utils
 import convnext as convnext
@@ -24,7 +24,7 @@ import yaml
 from models import SimpleWrapper, AnatomyModelWrapper, ProjectionHead
 
 def get_args_parser():
-    parser = argparse.ArgumentParser('David', add_help=False)
+    parser = argparse.ArgumentParser('LeADER', add_help=False)
     parser.add_argument('--arch', default='swin_base', type=str,
         help="""Name of architecture to train.""",choices=['swin_base','convnext_base'])
     parser.add_argument('--out_dim', default=1376, type=int, help="""Dimensionality of
