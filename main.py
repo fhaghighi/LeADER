@@ -89,7 +89,7 @@ def train(args):
         os.makedirs(args.output_dir)
 
     # ============ preparing data ... ============
-    with open("./datasets_config.yaml", 'r') as stream:
+    with open("datasets_config.yaml", 'r') as stream:
         datasets_config = yaml.safe_load(stream)
 
     transform = DataAugmentations(args.global_crops_scale
@@ -119,7 +119,7 @@ def train(args):
                 dataset = PadChestImagesAndEmbeddings(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'],
                                                    embedding_path=datasets_config[key]['disease_embedding_path'], augment=transform)
             else:
-                dataset = General_Local_GLobal_KD(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'], embeddings_path=datasets_config[key]['disease_embedding_path'], augment=transform, img_prfix=value[3],mode=value[4])
+                dataset = General_Local_GLobal_KD(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'], embeddings_path=datasets_config[key]['disease_embedding_path'], augment=transform, img_prfix=datasets_config[key]['img_extension'],mode=datasets_config[key]['input_type'])
 
 
             concat_datasets.append(dataset)
