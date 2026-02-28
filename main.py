@@ -73,7 +73,7 @@ def get_args_parser():
     parser.add_argument('--resume', default=None, type=str, help='set to True for continue training')
     parser.add_argument('--anatomy_model_arch', default="resnet50", type=str, help='anatomy expert model')
     parser.add_argument('--loss_mode', default="DA", type=str, help='DA|D|A')
-    parser.add_argument('--dataset_config', default="./datasets_config_local_train.yaml", type=str, help='daset config file name')
+    parser.add_argument('--dataset_config', default="./datasets_config.yaml", type=str, help='daset config file name')
     return parser
 
 
