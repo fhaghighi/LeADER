@@ -47,3 +47,35 @@ For pretraining with ground-truth disease embeddings generated on the fly by a d
 OMP_NUM_THREADS=1 torchrun --nproc_per_node=4 --rdzv_backend=c10d --rdzv_endpoint=localhost:29406  main_ark.py  --dist_url  'tcp://localhost:10005' --arch swin_base  --epochs 200  --batch_size_per_gpu 24  --num_workers  8  --output_dir ./leader_models  --pretrained_weights /path/to/swin_base_patch4_window7_224_22kto1k.pth  --lr 2e-4  --head_layers 1 --saveckp_freq 50  --anatomy_expert_pretrained_weights /path/to/anatomy_teacher/pretrained_model  --anatomy_out_dim 2048 --disease_expert_pretrained_weights /path/to/disease_teacher/pretrained_model
 
 ```
+
+## Citation
+Please cite our paper as follows:
+```
+@inproceedings{haghighi2025learning,
+  title={Learning anatomy-disease entangled representation},
+  author={Haghighi, Fatemeh and Gotway, Michael B and Liang, Jianming},
+  booktitle={2025 IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
+  pages={4129--4141},
+  year={2025},
+  organization={IEEE}
+}
+```
+## Acknowledgement
+This research was partially supported by ASU and Mayo
+Clinic through a Seed Grant and an Innovation Grant, as well
+as by the NIH under Award Number R01HL128785. The
+authors are solely responsible for the content, which does
+not necessarily reflect the official views of the NIH. This
+work also utilized GPUs provided by ASU Research Com-
+puting [31], Bridges-2 at the Pittsburgh Supercomputing
+Center (allocated under BCS190015), and Anvil at Purdue
+University (allocated under MED220025). These resources
+are supported by the Advanced Cyberinfrastructure Coordi-
+nation Ecosystem: Services & Support (ACCESS) program,
+funded by the National Science Foundation under grants
+#2138259, #2138286, #2138307, #2137603, and #2138296.
+The content of this paper is covered by patents pending.
+
+## License
+
+Released under the [ASU GitHub Project License](./LICENSE).
