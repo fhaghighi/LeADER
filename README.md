@@ -10,9 +10,8 @@ Human experts demonstrate proficiency not only in disentangling anatomical struc
 
 ## Publication
 <b>Learning Anatomy-Disease Entangled Representation </b> <br/>
-[Fatemeh Haghighi](https://github.com/fhaghighi)<sup>1*</sup>, [Michael B. Gotway](https://www.mayoclinic.org/biographies/gotway-michael-b-m-d/bio-20055566)<sup>2</sup>, [Jianming Liang](https://chs.asu.edu/jianming-liang)<sup>1</sup><br/>
+[Fatemeh Haghighi](https://github.com/fhaghighi)<sup>1</sup>, [Michael B. Gotway](https://www.mayoclinic.org/biographies/gotway-michael-b-m-d/bio-20055566)<sup>2</sup>, [Jianming Liang](https://chs.asu.edu/jianming-liang)<sup>1</sup><br/>
 <sup>1 </sup>Arizona State University, <sup>2 </sup>Mayo Clinic <br/>
-<sup>*</sup> Equal contributors ordered alphabetically.<br/>
 Published in: **IEEE/CVF Winter Conference on Applications of Computer Vision (WACV), 2025.**
 
 [Paper](https://openaccess.thecvf.com/content/WACV2025/papers/Haghighi_Learning_Anatomy-Disease_Entangled_Representation_WACV_2025_paper.pdf) 
