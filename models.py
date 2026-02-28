@@ -3,9 +3,9 @@ from functools import partial
 
 import torch
 import torch.nn as nn
-
+from torchvision import models as torchvision_models
 from utils import trunc_normal_
-
+from swin_transformer import SwinTransformer
 
 class ProjectionHead(nn.Module):
     def __init__(self, in_dim, out_dim, use_bn=False, norm_last_layer=True, nlayers=3, hidden_dim=2048, bottleneck_dim=256):
@@ -88,3 +88,25 @@ class AnatomyModelWrapper(nn.Module):
             x = self.fc2(x)
         x = nn.functional.normalize(x, dim=1)
         return x
+
+def build_disease_expert_model(args):
+    if args.disease_model_arch == "swin_base":
+        model = SwinTransformer(img_size=224, patch_size=4, in_chans=3, num_classes=0, embed_dim=128,
+                                         depths=[2, 2, 18, 2],
+                                         num_heads=[4, 8, 16, 32], window_size=7, mlp_ratio=4.,
+                                         qkv_bias=True, qk_scale=None, drop_rate=0, drop_path_rate=0.1, ape=False,
+                                         patch_norm=True, use_checkpoint=False)
+    elif args.disease_model_arch == "swin_small":
+        model = SwinTransformer(img_size=224, patch_size=4, in_chans=3, num_classes=0, embed_dim=96,
+                                         depths=[2, 2, 18, 2],
+                                         num_heads=[3, 6, 12, 24], window_size=7, mlp_ratio=4.,
+                                         qkv_bias=True, qk_scale=None, drop_rate=0, drop_path_rate=0.1, ape=False,
+                                         patch_norm=True, use_checkpoint=False)
+    elif args.disease_model_arch == "swin_tiny":
+        model = SwinTransformer(img_size=224, patch_size=4, in_chans=3, num_classes=0, embed_dim=96,
+                                         depths=[2, 2, 6, 2],
+                                         num_heads=[3, 6, 12, 24], window_size=7, mlp_ratio=4.,
+                                         qkv_bias=True, qk_scale=None, drop_rate=0, drop_path_rate=0.1, ape=False,
+                                         patch_norm=True, use_checkpoint=False)
+
+    return model

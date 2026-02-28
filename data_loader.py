@@ -16,7 +16,6 @@ from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 from torch.utils.data.sampler import Sampler
 import numpy as np
-import moco.loader
 import math
 
 
@@ -40,11 +39,12 @@ class DataAugmentations(object):
 
 
 class VinDrCXRImagesAndEmbeddings(Dataset):
-    def __init__(self, images_path, file_path, embedding_path, augment, num_class=6, annotation_percent=100):
+    def __init__(self, images_path, file_path, embedding_path=None, augment=None, num_class=6, annotation_percent=100,mode="img_embd"):
         self.img_list = []
         self.img_label = []
         self.augment = augment
         self.embedding_path = embedding_path
+        self.mode = mode
 
         with open(file_path, "r") as fr:
             line = fr.readline().strip()
@@ -75,23 +75,24 @@ class VinDrCXRImagesAndEmbeddings(Dataset):
         imageLabel = torch.FloatTensor(0) #dummy value
         imageData = Image.open(imagePath).convert('RGB')
         if self.augment != None: imageData = self.augment(imageData)
-
-        embedding = np.load(os.path.join(self.embedding_path, os.path.basename(imagePath)[:-5] + ".npy"))
-        em = torch.tensor(embedding, dtype=torch.double)
-
-        return imageData, em,imageLabel
+        if self.mode == "img_embd":
+            embedding = np.load(os.path.join(self.embedding_path, os.path.basename(imagePath)[:-5] + ".npy"))
+            em = torch.tensor(embedding, dtype=torch.double)
+            return imageData, em,imageLabel
+        else:
+            return imageData, imageLabel
 
     def __len__(self):
-
         return len(self.img_list)
 
 class PadChestImagesAndEmbeddings(Dataset):
-    def __init__(self, images_path, file_path, embedding_path, augment, annotation_percent=100):
+    def __init__(self, images_path, file_path, embedding_path=None, augment=None, annotation_percent=100,mode="img_embd"):
         self.img_list = []
         self.img_label = []
         self.augment = augment
         self.embedding_path = embedding_path
         self.images_path = images_path
+        self.mode = mode
 
         with open(file_path, "r") as fr:
             line = fr.readline().strip()
@@ -110,30 +111,32 @@ class PadChestImagesAndEmbeddings(Dataset):
             self.img_list = []
             for i in indexes:
                 self.img_list.append(_img_list[i])
-    def __getitem__(self, index):
 
+    def __getitem__(self, index):
         imagePath = os.path.join(self.images_path,self.img_list[index])
         imageLabel = torch.FloatTensor(0) #dummy value
         imageData = Image.open(imagePath).convert('RGB')
         if self.augment != None: imageData = self.augment(imageData)
-        embedding = np.load(os.path.join(self.embedding_path, self.img_list[index].replace(".png",".npy")))
-        em = torch.tensor(embedding, dtype=torch.double)
-        return imageData, em,imageLabel
+        if self.mode== "img_embd":
+            embedding = np.load(os.path.join(self.embedding_path, self.img_list[index].replace(".png",".npy")))
+            em = torch.tensor(embedding, dtype=torch.double)
+            return imageData, em,imageLabel
+        else:
+            return imageData, imageLabel
 
     def __len__(self):
-
         return len(self.img_list)
 
 class ShenzhenImagesAndEmbeddings(Dataset):
-    def __init__(self, images_path, file_path, embedding_path, augment, annotation_percent=100):
+    def __init__(self, images_path, file_path, embedding_path=None, augment=None, annotation_percent=100,mode="img_embd"):
         self.img_list = []
         self.img_label = []
         self.augment = augment
         self.embedding_path = embedding_path
         self.images_path = images_path
+        self.mode = mode
 
         with open(file_path, "r") as fr:
-
             line = fr.readline().strip()
             while line:
                 lineItems = line.split(',')
@@ -152,26 +155,31 @@ class ShenzhenImagesAndEmbeddings(Dataset):
 
             for i in indexes:
                 self.img_list.append(_img_list[i])
+
     def __getitem__(self, index):
         imagePath = os.path.join(self.images_path,self.img_list[index])
         imageLabel = torch.FloatTensor(0) #dummy value
         imageData = Image.open(imagePath).convert('RGB')
         if self.augment != None: imageData = self.augment(imageData)
-        embedding = np.load(os.path.join(self.embedding_path, self.img_list[index].replace(".png",".npy")))
-        em = torch.tensor(embedding, dtype=torch.double)
-        return imageData, em,imageLabel
+        if self.mode=="img_embd":
+            embedding = np.load(os.path.join(self.embedding_path, self.img_list[index].replace(".png",".npy")))
+            em = torch.tensor(embedding, dtype=torch.double)
+            return imageData, em,imageLabel
+        else:
+            return imageData, imageLabel
 
     def __len__(self):
         return len(self.img_list)
 
 
 class CheXpertImagesAndEmbeddings(Dataset):
-    def __init__(self, images_path, file_path, embedding_path, augment, annotation_percent=100,num_class=14,unknown_label=0):
+    def __init__(self, images_path, file_path, embedding_path=None, augment=None, annotation_percent=100,num_class=14,unknown_label=0,mode="img_embd"):
         self.img_list = []
         self.img_label = []
         self.augment = augment
         self.embedding_path = embedding_path
         self.images_path = images_path
+        self.mode = mode
         with open(file_path, "r") as fileDescriptor:
             csvReader = csv.reader(fileDescriptor)
             next(csvReader, None)
@@ -204,47 +212,56 @@ class CheXpertImagesAndEmbeddings(Dataset):
 
             for i in indexes:
                 self.img_list.append(_img_list[i])
+
     def __getitem__(self, index):
         imagePath = os.path.join(self.images_path,self.img_list[index])
         imageLabel = torch.FloatTensor(0) #dummy value
         imageData = Image.open(imagePath).convert('RGB')
         if self.augment != None: imageData = self.augment(imageData)
-        embedding = np.load(os.path.join(self.embedding_path, self.img_list[index][:-4]+".npy"))
-        em = torch.tensor(embedding, dtype=torch.double)
-        return imageData, em,imageLabel
+        if self.mode == "img_embd":
+            embedding = np.load(os.path.join(self.embedding_path, self.img_list[index][:-4]+".npy"))
+            em = torch.tensor(embedding, dtype=torch.double)
+            return imageData, em,imageLabel
+        else:
+            return imageData, imageLabel
 
     def __len__(self):
         return len(self.img_list)
 
 class MIMICImagesAndEmbeddings(Dataset):
-    def __init__(self, images_path, file_path, embedding_path, augment, annotation_percent=100,num_class=14,unknown_label=0):
+    def __init__(self, images_path, file_path, embedding_path=None, augment=None, annotation_percent=100,num_class=14,unknown_label=0,mode="img_embd"):
         self.img_list = []
         self.img_label = []
         self.augment = augment
         self.embedding_path = embedding_path
         self.images_path = images_path
+        self.mode = mode
 
         with open(file_path, "r") as fileDescriptor:
             csvReader = csv.reader(fileDescriptor)
             next(csvReader, None)
             for line in csvReader:
                 imagePath = line[0]
-                if os.path.isfile(os.path.join(self.embedding_path, imagePath[:-4] + ".npy")):
-                    self.img_list.append(imagePath)
-                    label = line[5:]
-                    for i in range(num_class):
-                        if label[i]:
-                            a = float(label[i])
-                            if a == 1:
-                                label[i] = 1
-                            elif a == 0:
-                                label[i] = 0
-                            elif a == -1:  # uncertain label
-                                label[i] = -1
-                        else:
-                            label[i] = unknown_label  # unknown label
-                    imageLabel = [int(i) for i in label]
-                    self.img_label.append(imageLabel)
+                use_image = True
+                if self.embedding_path is not None:
+                    npy_path = os.path.join(self.embedding_path, imagePath[:-4] + ".npy")
+                    use_image = os.path.isfile(npy_path)
+                if use_image:
+                        self.img_list.append(imagePath)
+                        label = line[5:]
+                        for i in range(num_class):
+                            if label[i]:
+                                a = float(label[i])
+                                if a == 1:
+                                    label[i] = 1
+                                elif a == 0:
+                                    label[i] = 0
+                                elif a == -1:  # uncertain label
+                                    label[i] = -1
+                            else:
+                                label[i] = unknown_label  # unknown label
+                        imageLabel = [int(i) for i in label]
+                        self.img_label.append(imageLabel)
 
         if annotation_percent < 100:
             indexes = np.arange(len(self.img_list))
@@ -255,25 +272,28 @@ class MIMICImagesAndEmbeddings(Dataset):
             self.img_list = []
             for i in indexes:
                 self.img_list.append(_img_list[i])
+
     def __getitem__(self, index):
         imagePath = os.path.join(self.images_path,self.img_list[index])
         imageLabel = torch.FloatTensor(0) #dummy value
         imageData = Image.open(imagePath).convert('RGB')
         if self.augment != None: imageData = self.augment(imageData)
-
-        embedding = np.load(os.path.join(self.embedding_path, self.img_list[index][:-4]+".npy"))
-        em = torch.tensor(embedding, dtype=torch.double)
-        return imageData, em,imageLabel
-
+        if self.mode=="img_embd":
+            embedding = np.load(os.path.join(self.embedding_path, self.img_list[index][:-4]+".npy"))
+            em = torch.tensor(embedding, dtype=torch.double)
+            return imageData, em,imageLabel
+        else:
+            return imageData, imageLabel
     def __len__(self):
         return len(self.img_list)
 
 
 class General_Local_GLobal_KD(Dataset):
-  def __init__(self, images_path, file_path, embeddings_path, augment, img_prfix,mode="local"):
+  def __init__(self, images_path, file_path, embeddings_path=None, augment=None, img_prfix=None,mode="local",out_mode="img_embd"):
     self.img_list = []
     self.augment = augment
     self.embeddings_path = embeddings_path
+    self.out_mode = out_mode
 
     with open(file_path, "r") as fr:
       line = fr.readline().strip()
@@ -292,35 +312,34 @@ class General_Local_GLobal_KD(Dataset):
   def __getitem__(self, index):
     patchPath = self.img_list[index]
     imageData = Image.open(patchPath).convert('RGB').resize((224,224))
-    embedding = np.load(os.path.join(self.embeddings_path, os.path.basename(patchPath)[:-4] + ".npy"))
-    embedding = torch.tensor(embedding, dtype=torch.double)
     if self.augment != None: imageData = self.augment(imageData)
     imageLabel = torch.FloatTensor(0)  # dummy value
-    return imageData,embedding,imageLabel
+    if self.out_mode == "img_embd":
+        embedding = np.load(os.path.join(self.embeddings_path, os.path.basename(patchPath)[:-4] + ".npy"))
+        embedding = torch.tensor(embedding, dtype=torch.double)
+        return imageData,embedding,imageLabel
+    else:
+        return imageData, imageLabel
 
   def __len__(self):
     return len(self.img_list)
 
 class RSNAPneumoniaImagesAndEmbeddings(Dataset):
-
-    def __init__(self, images_path, file_path, embedding_path,augment, annotation_percent=100):
-
+    def __init__(self, images_path, file_path, embedding_path=None,augment=None, annotation_percent=100, mode="img_embd"):
         self.img_list = []
         self.img_label = []
         self.augment = augment
         self.embedding_path = embedding_path
         self.images_path = images_path
-
+        self.mode = mode
 
         with open(file_path, "r") as fileDescriptor:
             line = True
-
             while line:
                 line = fileDescriptor.readline()
                 if line:
                     lineItems = line.strip().split(' ')
                     imagePath =  lineItems[0]
-
                     self.img_list.append(imagePath)
                     imageLabel = np.zeros(3)
                     imageLabel[int(lineItems[-1])] = 1
@@ -341,17 +360,16 @@ class RSNAPneumoniaImagesAndEmbeddings(Dataset):
                 self.img_label.append(_img_label[i])
 
     def __getitem__(self, index):
-
         imagePath = os.path.join(self.images_path,self.img_list[index])
         imageLabel = torch.FloatTensor(0) #dummy value
         imageData = Image.open(imagePath).convert('RGB')
         if self.augment != None: imageData = self.augment(imageData)
-
-        embedding = np.load(os.path.join(self.embedding_path, self.img_list[index][:-4]+".npy"))
-        em = torch.tensor(embedding, dtype=torch.double)
-
-        return imageData, em,imageLabel
+        if self.mode=="img_embd":
+            embedding = np.load(os.path.join(self.embedding_path, self.img_list[index][:-4]+".npy"))
+            em = torch.tensor(embedding, dtype=torch.double)
+            return imageData, em,imageLabel
+        else:
+            return imageData,imageLabel
 
     def __len__(self):
-
         return len(self.img_list)

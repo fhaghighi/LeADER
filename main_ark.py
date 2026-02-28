@@ -21,18 +21,20 @@ from swin_transformer import SwinTransformer
 import utils
 import convnext as convnext
 import yaml
-from models import SimpleWrapper, AnatomyModelWrapper, ProjectionHead
+from models import SimpleWrapper, AnatomyModelWrapper, ProjectionHead, build_disease_expert_model
 
 def get_args_parser():
     parser = argparse.ArgumentParser('LeADER', add_help=False)
     parser.add_argument('--arch', default='swin_base', type=str,
         help="""Name of architecture to train.""",choices=['swin_base','convnext_base'])
-    parser.add_argument('--out_dim', default=1376, type=int, help="""Dimensionality of
+    parser.add_argument('--out_dim', default=1024, type=int, help="""Dimensionality of
         the disease head output """)
     parser.add_argument('--anatomy_out_dim', default=2048, type=int, help="""Dimensionality of
         the anatomy head output""")
     parser.add_argument('--norm_last_layer', default=True, type=utils.bool_flag,
         help="""Whether or not to weight normalize the last layer of the heads.""")
+    parser.add_argument('--resume', default=False, type=utils.bool_flag,
+        help="""resume training.""")
     parser.add_argument('--use_bn_in_head', default=False, type=utils.bool_flag,
         help="Whether to use batch normalizations in heads")
     parser.add_argument('--use_fp16', type=utils.bool_flag, default=True)
@@ -53,6 +55,7 @@ def get_args_parser():
     parser.add_argument('--optimizer', default='adamw', type=str,
         choices=['adamw', 'sgd', 'lars'])
     parser.add_argument('--drop_path_rate', type=float, default=0.1, help="stochastic depth rate")
+
     parser.add_argument('--global_crops_scale', type=float, nargs='+', default=(0.8, 1.))
     parser.add_argument('--dataset', default='VinDR_CXR_patch', action="append")
     parser.add_argument('--disease_embeddings_path', default=None, type=str,help='path to disease embeddings')
@@ -67,11 +70,12 @@ def get_args_parser():
     parser.add_argument('--use_head_pretrained_weights', action='store_true',help='use KD pretrained head weights for disease branch')
     parser.add_argument('--anatomy_model_use_head', action='store_true',help='use pretrained head weights for anatomy branch')
     parser.add_argument("--anatomy_expert_pretrained_weights", default=None, type=str, help="pretrained encoder path")
+    parser.add_argument("--disease_expert_pretrained_weights", default=None, type=str, help="pretrained encoder path")
     parser.add_argument('--kd_disease_loss_weight', type=float, default=1, help="kd disease loss weight")
     parser.add_argument('--kd_anatomy_loss_weight', type=float, default=1, help="kd anatomy loss weight")
     parser.add_argument('--head_layers', default=1, type=int, help="""number of layers for KD head""")
-    parser.add_argument('--resume', default=None, type=str, help='set to True for continue training')
     parser.add_argument('--anatomy_model_arch', default="resnet50", type=str, help='anatomy expert model')
+    parser.add_argument('--disease_model_arch', default="swin_base", type=str, help='disease expert model')
     parser.add_argument('--loss_mode', default="DA", type=str, help='DA|D|A')
     parser.add_argument('--dataset_config', default="./datasets_config_local_train.yaml", type=str, help='daset config file name')
     return parser
@@ -86,53 +90,6 @@ def train(args):
 
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
-
-    # ============ preparing data ... ============
-    with open(args.dataset_config, 'r') as stream:
-        datasets_config = yaml.safe_load(stream)
-
-    transform = DataAugmentations(args.global_crops_scale
-    )
-
-    concat_datasets = []
-    for key in list(datasets_config.keys()):
-            if key == "chexpert":
-                dataset = CheXpertImagesAndEmbeddings(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'],
-                                                   embedding_path=datasets_config[key]['disease_embedding_path'], augment=transform)
-
-            elif key == "vindrcxr":
-                dataset = VinDrCXRImagesAndEmbeddings(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'],
-                                                   embedding_path=datasets_config[key]['disease_embedding_path'], augment=transform)
-            elif key == "rsna":
-                dataset = RSNAPneumoniaImagesAndEmbeddings(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'],
-                                                   embedding_path=datasets_config[key]['disease_embedding_path'], augment=transform)
-            elif key == "mimic":
-                dataset = MIMICImagesAndEmbeddings(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'],
-                                                   embedding_path=datasets_config[key]['disease_embedding_path'], augment=transform)
-            elif key == "shenzhen":
-                dataset = ShenzhenImagesAndEmbeddings(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'],
-                                                   embedding_path=datasets_config[key]['disease_embedding_path'], augment=transform)
-
-            elif key=="nih14" or key=="padchest":
-                dataset = PadChestImagesAndEmbeddings(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'],
-                                                   embedding_path=datasets_config[key]['disease_embedding_path'], augment=transform)
-            else:
-                dataset = General_Local_GLobal_KD(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'], embeddings_path=datasets_config[key]['disease_embedding_path'], augment=transform, img_prfix=datasets_config[key]['img_extension'],mode=datasets_config[key]['input_type'])
-
-            print(f"Number of images in {key} dataset is{len(dataset)} ")
-            concat_datasets.append(dataset)
-
-    train_dataset = torch.utils.data.ConcatDataset(concat_datasets)
-    sampler = torch.utils.data.DistributedSampler(train_dataset, shuffle=True)
-    data_loader = torch.utils.data.DataLoader(
-        train_dataset,
-        sampler=sampler,
-        batch_size=args.batch_size_per_gpu,
-        num_workers=args.num_workers,
-        pin_memory=True,
-        drop_last=True,
-    )
-    print(f"Data loaded: there are {len(train_dataset)} images.")
 
     # ============ building models ... ============
 
@@ -201,11 +158,12 @@ def train(args):
         nlayers=args.head_layers
     ))
 
-
     student= student.cuda()
     if utils.has_batchnorms(student):
         student = nn.SyncBatchNorm.convert_sync_batchnorm(student)
     student = nn.parallel.DistributedDataParallel(student, device_ids=[args.gpu],broadcast_buffers=False)
+
+    # ============ create anatomy expert model ... ============
     anatomy_expert_model = AnatomyModelWrapper(args)
     state_dict = torch.load(args.anatomy_expert_pretrained_weights, map_location="cpu")
     if 'state_dict' in state_dict:
@@ -217,13 +175,71 @@ def train(args):
     state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
     state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}
     state_dict = {k.replace("encoder.", "base_model."): v for k, v in state_dict.items()}
-
     msg = anatomy_expert_model.base_model.load_state_dict(state_dict, strict=False)
     print("=> loaded anatomy expert  pre-trained model '{}'".format(args.anatomy_expert_pretrained_weights))
     print("=> missing keys'{}'".format(msg))
     for p in anatomy_expert_model.parameters():
         p.requires_grad = False
     anatomy_expert_model = anatomy_expert_model.cuda()
+
+    # ============ create disease expert model ... ============
+    disease_expert_model = build_disease_expert_model(args)
+    state_dict = torch.load(args.disease_expert_pretrained_weights, map_location="cpu")
+    if 'teacher' in state_dict:
+        state_dict = state_dict['state_dict']
+    elif 'model' in state_dict:
+        state_dict = state_dict['model']
+    state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+    msg = disease_expert_model.load_state_dict(state_dict, strict=False)
+    print("=> loaded disease expert  pre-trained model '{}'".format(args.disease_expert_pretrained_weights))
+    print("=> missing keys'{}'".format(msg))
+    for p in disease_expert_model.parameters():
+        p.requires_grad = False
+    disease_expert_model = disease_expert_model.cuda()
+
+    # ============ preparing data ... ============
+    with open(args.dataset_config, 'r') as stream:
+        datasets_config = yaml.safe_load(stream)
+
+    transform = DataAugmentations(args.global_crops_scale
+    )
+
+    concat_datasets = []
+    for key in list(datasets_config.keys()):
+            if key == "chexpert":
+                dataset = CheXpertImagesAndEmbeddings(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'], augment=transform, mode="img")
+            elif key == "vindrcxr":
+                dataset = VinDrCXRImagesAndEmbeddings(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'],
+                                                    augment=transform, mode="img")
+            elif key == "rsna":
+                dataset = RSNAPneumoniaImagesAndEmbeddings(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'],
+                                                    augment=transform, mode="img")
+            elif key == "mimic":
+                dataset = MIMICImagesAndEmbeddings(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'],
+                                                    augment=transform, mode="img")
+            elif key == "shenzhen":
+                dataset = ShenzhenImagesAndEmbeddings(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'],
+                                                    augment=transform, mode="img")
+
+            elif key=="nih14" or key=="padchest":
+                dataset = PadChestImagesAndEmbeddings(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'],
+                                                    augment=transform, mode="img")
+            else:
+                dataset = General_Local_GLobal_KD(images_path=datasets_config[key]['images_path'], file_path=datasets_config[key]['train_list'], augment=transform, img_prfix=datasets_config[key]['img_extension'],mode=datasets_config[key]['input_type'], out_mode="img")
+            print(f"Number of images in {key} dataset is{len(dataset)} ")
+            concat_datasets.append(dataset)
+
+    train_dataset = torch.utils.data.ConcatDataset(concat_datasets)
+    sampler = torch.utils.data.DistributedSampler(train_dataset, shuffle=True)
+    data_loader = torch.utils.data.DataLoader(
+        train_dataset,
+        sampler=sampler,
+        batch_size=args.batch_size_per_gpu,
+        num_workers=args.num_workers,
+        pin_memory=True,
+        drop_last=True,
+    )
+    print(f"Data loaded: there are total {len(train_dataset)} images.")
 
     # ============ preparing loss ... ============
     disease_kd_loss = torch.nn.MSELoss().cuda()
@@ -255,15 +271,25 @@ def train(args):
     )
 
     print(f"Loss, optimizer and schedulers ready.")
-
+    # ============ resume training ... ============
+    start_epoch = 0
+    if args.resume:
+        ckpt_path = os.path.join(args.output_dir, "checkpoint.pth")
+        checkpoint = torch.load(ckpt_path, map_location="cpu")
+        student.load_state_dict(checkpoint['student'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        start_epoch = checkpoint['epoch']
+        if 'fp16_scaler' in checkpoint and fp16_scaler is not None:
+            fp16_scaler.load_state_dict(checkpoint['fp16_scaler'])
+        print(f"Resuming training from epoch {start_epoch}...")
     # ============ training ... ============
     start_time = time.time()
     print("Starting training !")
-    for epoch in range(args.epochs):
+    for epoch in range(start_epoch,args.epochs):
         data_loader.sampler.set_epoch(epoch)
 
         # ============ training one epoch ... ============
-        train_stats = train_one_epoch(student, anatomy_expert_model,disease_kd_loss,anatomy_kd_loss,
+        train_stats = train_one_epoch(student, anatomy_expert_model,disease_expert_model,disease_kd_loss,anatomy_kd_loss,
             data_loader, optimizer, lr_schedule, wd_schedule,
             epoch, fp16_scaler, args)
 
@@ -288,25 +314,24 @@ def train(args):
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
 
-def train_one_epoch(student,anatomy_expert_model, disease_kd_loss, anatomy_kd_loss, data_loader,
+def train_one_epoch(student,anatomy_expert_model,disease_expert_model, disease_kd_loss, anatomy_kd_loss, data_loader,
                     optimizer, lr_schedule, wd_schedule, epoch,
                     fp16_scaler, args):
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Epoch: [{}/{}]'.format(epoch, args.epochs)
-    for it, (images, embds_targets,imageLabel) in enumerate(metric_logger.log_every(data_loader, 1, header)):
+    for it, (images,imageLabel) in enumerate(metric_logger.log_every(data_loader, 1, header)):
         it = len(data_loader) * epoch + it  # global training iteration
         for i, param_group in enumerate(optimizer.param_groups):
             param_group["lr"] = lr_schedule[it]
             if i == 0:
                 param_group["weight_decay"] = wd_schedule[it]
         images = images.cuda(non_blocking=True)
-        embds_targets = embds_targets.float().cuda(non_blocking=True)
-
         with torch.cuda.amp.autocast(fp16_scaler is not None):
             disease_embeddings_outputs,anatomy_embeddings_outputs = student(images)
             anatomy_embeddings_targets = anatomy_expert_model(images)
-            embds_targets = nn.functional.normalize(embds_targets, dim=1)
-            loss_kd_disease = disease_kd_loss(disease_embeddings_outputs, embds_targets)
+            disease_embeddings_targets = disease_expert_model(images)
+            disease_embeddings_targets = nn.functional.normalize(disease_embeddings_targets, dim=1)
+            loss_kd_disease = disease_kd_loss(disease_embeddings_outputs, disease_embeddings_targets)
             loss_kd_anatomy = anatomy_kd_loss(anatomy_embeddings_outputs, anatomy_embeddings_targets)
             loss = loss_kd_disease+loss_kd_anatomy
 
