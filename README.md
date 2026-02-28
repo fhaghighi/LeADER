@@ -15,5 +15,17 @@ Human experts demonstrate proficiency not only in disentangling anatomical struc
 <sup>*</sup> Equal contributors ordered alphabetically.<br/>
 Published in: **IEEE/CVF Winter Conference on Applications of Computer Vision (WACV), 2025.**
 
-
 [Paper](https://openaccess.thecvf.com/content/WACV2025/papers/Haghighi_Learning_Anatomy-Disease_Entangled_Representation_WACV_2025_paper.pdf) 
+
+## Requirements
++ Linux
++ Python
++ Install PyTorch ([pytorch.org](http://pytorch.org))
+
+## Installation
+Clone the repository and install dependencies using the following command:
+```bash
+$ git clone https://github.com/fhaghighi/LeADER.git
+$ cd LeADER/
+$ pip install -r requirements.txt
+```
